@@ -1,0 +1,89 @@
+---
+title: "ESM 232, Assignment 8"
+author: "Nathalie Eegholm"
+date: "5/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(purrr)
+library(lubridate)
+
+require(pracma)
+library(pracma)
+```
+
+
+```{r load data}
+# copied from evalexamples.Rmd
+sager = read.table("R/sager.txt", header=T)
+head(sager)
+
+# add date from the existing columns of day, month, year
+sager = sager %>% mutate(date=make_date(year=year, month=month, day=day))
+
+# always start with plotting observed and model
+# here's where you can catch "unrealistic" values
+# plot
+sagerl = sager %>% gather(key="source",value="streamflow",-date,-month,-day,-wy,-wyd,-year)
+
+
+
+# multiple results - lets say we've run the model for multiple years, each column
+# is streamflow for a different parameter set
+msage = read.table("R/sagerm.txt", header=T)
+#^ lots of model versions run, each with diff parameters
+
+# lets say we know the start date from our earlier output
+msage$date = sager$date
+head(msage)
+msage$month = sager$month
+msage$year = sager$year
+msage$day = sager$day
+msage$wy = sager$wy
+
+# and we still have observed data from above
+# useful to combine by date to make sure that streamflow and observe match
+
+msage$obs = sager$obs
+
+
+# how can we plot all results
+# to turn all the columns of different outputs into a single column identified by "run"
+msagel = msage %>% gather(key="run",value="streamflow", -date, -month, -day, -year, -wy, -obs)
+
+```
+
+
+```{r AUC metric}
+
+source("R/AUCdiff.R")
+AUCdiff
+
+
+res = msage %>% select(-date, -month, -day, -year, -wy, -obs) %>% map_dbl(~AUCdiff(m=.x, o=msage$obs))
+summary(res)
+
+
+simnames = names(msage %>% select(-date, -month, -day,-year,-wy, -obs))
+results = cbind.data.frame(simnames=simnames, AUCdiff=res)
+
+
+
+resultsl = results %>% gather(key="metric",value="value", -simnames)
+ggplot(resultsl, aes(metric, value))+geom_boxplot()+facet_wrap(~metric, scales="free")
+
+
+#find which model yields minimum AUCdiff 
+resultsl$simnames[which.min(resultsl$value)]
+
+
+```
+
+
+
+
+```
