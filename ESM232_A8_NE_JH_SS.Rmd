@@ -21,15 +21,17 @@ library(pracma)
 
 ```{r load data}
 
-sager = read.table("/Users/neegholm/Documents/ESM232_S21/Rmaterials_May19/sager.txt", header=T)
+sager = read.table("R/sager.txt", header = T)
 
 # add date from the existing columns of day, month, year
-sager = sager %>% mutate(date=make_date(year=year, month=month, day=day))
+sager = sager %>% 
+  mutate(date = make_date(year = year, month = month, day = day))
 
-sagerl = sager %>% gather(key="source",value="streamflow",-date,-month,-day,-wy,-wyd,-year)
+sagerl = sager %>% 
+  gather(key = "source", value = "streamflow", -date, -month, -day, -wy, -wyd, -year)
 
 # multiple results - lets say we've run the model for multiple years, each column is streamflow for a different parameter set
-msage = read.table("/Users/neegholm/Documents/ESM232_S21/Rmaterials_May19/sagerm.txt", header=T)
+msage = read.table("R/sagerm.txt", header = T)
 
 # lets say we know the start date from our earlier output
 msage$date = sager$date
@@ -42,7 +44,8 @@ msage$wy = sager$wy
 msage$obs = sager$obs
 
 # to turn all the columns of different outputs into a single column identified by "run"
-msagel = msage %>% gather(key="run",value="streamflow", -date, -month, -day, -year, -wy, -obs)
+msagel = msage %>% 
+  gather(key = "run", value = "streamflow", -date, -month, -day, -year, -wy, -obs)
 
 ```
 
@@ -51,28 +54,38 @@ Our performance metric: finding the minimum of the area under the curve of the m
 ```{r AUC metric}
 
 # Performance Metric
-
-source("/Users/neegholm/Documents/ESM232_S21/Rmaterials_May19/AUCdiff.R")
+source("R/AUCdiff.R")
 
 AUCdiff
 
 #store results
-res = msage %>% select(-date, -month, -day, -year, -wy, -obs) %>% map_dbl(~AUCdiff(m=.x, o=msage$obs))
+res = msage %>% 
+  select(-date, -month, -day, -year, -wy, -obs) %>% 
+  map_dbl(~AUCdiff(m = .x, o = msage$obs))
+
 summary(res)
 
 
-simnames = names(msage %>% select(-date, -month, -day,-year,-wy, -obs))
-results = cbind.data.frame(simnames=simnames, AUCdiff=res)
+simnames = names(msage %>% 
+                   select(-date, -month, -day, -year, -wy, -obs))
 
+results = cbind.data.frame(simnames = simnames, AUCdiff = res)
 
 #plot boxplot of results from performance metric:
-resultsl = results %>% gather(key="metric",value="value", -simnames)
-ggplot(resultsl, aes(metric, value))+geom_boxplot()+facet_wrap(~metric, scales="free")
+resultsl = results %>% 
+  gather(key = "metric", value = "value", -simnames)
 
+ggplot(data = resultsl, aes(x = metric, y = value)) +
+  geom_boxplot() +
+  facet_wrap(~metric, scales = "free") +
+  labs(x = "Metric", 
+       y = "AUC Difference") +
+  theme_minimal() +
+  theme(strip.placement = "none",
+        strip.text = element_blank())
 
 #find which model yields minimum AUCdiff: 
 resultsl$simnames[which.min(resultsl$value)]
-
 
 ```
 
