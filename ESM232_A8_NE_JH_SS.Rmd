@@ -1,0 +1,82 @@
+---
+title: "ESM 232, Assignment 8"
+author: "Nathalie Eegholm, Jaleise Hall, Shuhan Song"
+date: "5/20/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(purrr)
+library(lubridate)
+
+require(pracma)
+library(pracma)
+```
+
+
+```{r load data}
+
+sager = read.table("/Users/neegholm/Documents/ESM232_S21/Rmaterials_May19/sager.txt", header=T)
+
+# add date from the existing columns of day, month, year
+sager = sager %>% mutate(date=make_date(year=year, month=month, day=day))
+
+sagerl = sager %>% gather(key="source",value="streamflow",-date,-month,-day,-wy,-wyd,-year)
+
+# multiple results - lets say we've run the model for multiple years, each column is streamflow for a different parameter set
+msage = read.table("/Users/neegholm/Documents/ESM232_S21/Rmaterials_May19/sagerm.txt", header=T)
+
+# lets say we know the start date from our earlier output
+msage$date = sager$date
+msage$month = sager$month
+msage$year = sager$year
+msage$day = sager$day
+msage$wy = sager$wy
+
+# add observed data from sager.txt
+msage$obs = sager$obs
+
+# to turn all the columns of different outputs into a single column identified by "run"
+msagel = msage %>% gather(key="run",value="streamflow", -date, -month, -day, -year, -wy, -obs)
+
+```
+
+Our performance metric: finding the minimum of the area under the curve of the modeled streamflow data subtracted from the area under the curve of the observed streamflow data. 
+
+```{r AUC metric}
+
+# Performance Metric
+
+source("/Users/neegholm/Documents/ESM232_S21/Rmaterials_May19/AUCdiff.R")
+
+AUCdiff
+
+#store results
+res = msage %>% select(-date, -month, -day, -year, -wy, -obs) %>% map_dbl(~AUCdiff(m=.x, o=msage$obs))
+summary(res)
+
+
+simnames = names(msage %>% select(-date, -month, -day,-year,-wy, -obs))
+results = cbind.data.frame(simnames=simnames, AUCdiff=res)
+
+
+#plot boxplot of results from performance metric:
+resultsl = results %>% gather(key="metric",value="value", -simnames)
+ggplot(resultsl, aes(metric, value))+geom_boxplot()+facet_wrap(~metric, scales="free")
+
+
+#find which model yields minimum AUCdiff: 
+resultsl$simnames[which.min(resultsl$value)]
+
+
+```
+
+
+
+
+```
